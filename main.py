@@ -247,8 +247,51 @@ def analyse_data():
 
     window.close()
     return
-# convert xlsx to csv format
+# user seperation
+def user_selector_window():
+    layout = [
+        [
+            sg.B("User", s=16),
+            sg.B("Administrator", s=16),
 
+        ],
+    ]
+    window = sg.Window("User Selection", layout)
+    while True:
+        event, values = window.read()
+        if event == sg.WINDOW_CLOSED:
+            break
+        if event == "User":
+            user_window()
+            break
+        if event == "Administrator":
+            main_window()
+            break
+
+
+    window.close()
+
+def user_window():
+    # GUI Definition
+    layout = [
+        [
+            sg.B("Settings", s=16),
+            sg.B("Update Row in Excel", s=16),
+        ],
+
+    ]
+    window = sg.Window("LTA GUI Tool", layout)
+    while True:
+        event, values = window.read()
+        if event == sg.WINDOW_CLOSED:
+            break
+        if event == "Settings":
+            settings_window(settings)
+        if event == "Update Row in Excel":
+            gui_settings_window()
+
+
+    window.close()
 
 def main_window():
     # GUI Definition
@@ -305,7 +348,7 @@ if __name__ == '__main__':
     # argument should be the path to the csv,
     # process_csv(csv_data[0])
 
-    main_window()
+    user_selector_window()
 
 
 # add row window
