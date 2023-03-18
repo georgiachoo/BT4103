@@ -9,6 +9,7 @@ import pandas as pd
 import PySimpleGUI as sg
 import textwrap
 from pathlib import Path
+import difflib
 
 
 
@@ -147,7 +148,8 @@ def gui_window(file, sheet):
                 window['input_6'].update(df.iloc[idx, 31].values[0])
                 window['input_7'].update(df.iloc[idx, 32].values[0])
             else:
-                sg.popup("Not found")
+                words = list(df['Item Id'])
+                sg.popup("Item Id not found, Did you mean {} instead?".format(difflib.get_close_matches(str(values['item_id']), words)))
         if event == 'Update':
             if len(idx) < 1:
                 sg.popup("Select row to update")
