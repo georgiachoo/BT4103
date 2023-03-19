@@ -76,6 +76,30 @@ def gui_settings_window():
               ]
     window = sg.Window("Retrieve/update row in excel", layout,
                        modal=True, use_custom_titlebar=True)
+    
+    layout_to_insert = [[sg.T("Row to Edit: "), sg.T("-", key='to_edit')],
+              [sg.T("Item ID :", size=(40, 1), justification="r"),
+               sg.I(key="item_id")],
+              [sg.T("Test Lead :", size=(40, 1), justification="r"),
+               sg.I(key="input_1")],
+              [sg.T("Why defect was not identified during testing? :",
+                    size=(40, 1), justification="r"), sg.I(key="input_2")],
+              [sg.T("Are related requirements recorded in the BR or UCS? :",
+                    size=(40, 2), justification="r"), sg.I(key="input_3")],
+              [sg.T("If prior response is 'Yes', list down the BR or UCS document number(s) and clause identifier(s) :", size=(
+                  40, 2), justification="r"), sg.I(key="input_4")],
+              [sg.T("Primary Root Cause Classification #3 :", size=(
+                  40, 1), justification="r"), sg.I(key="input_5")],
+              [sg.B("Insert classifications", key='insert')],
+              [sg.T("Remark :", size=(40, 1), justification="r"),
+               sg.I(key="input_6")],
+              [sg.T("Proposed solution to prevent recurrence :", size=(
+                  40, 1), justification="r"), sg.I(key="input_7")],
+
+              [sg.B("Search", key="search"), sg.Push(),
+               sg.B("Update", key="Update")]
+
+              ]
     while True:
         event, values = window.read()
         if event == sg.WINDOW_CLOSED:
@@ -83,13 +107,13 @@ def gui_settings_window():
         if event == 'open_excel':
             file = str(values["file_name"])
             sheet = str(values["-SHEET_NAME-"])
-            gui_window(file, sheet)
+            gui_window(layout_to_insert, file, sheet, 97, 7)
             break
 
     window.close()
 
 
-def gui_window(file, sheet):
+def gui_window(layout, file, sheet, alphabet, to_insert_index):
     df = pd.read_csv(file)
     # df = pd.read_excel(io=file, sheet_name=sheet, skiprows=0)
     layout = [[sg.T("Row to Edit: "), sg.T("-", key='to_edit')],
@@ -105,6 +129,7 @@ def gui_window(file, sheet):
                   40, 2), justification="r"), sg.I(key="input_4")],
               [sg.T("Primary Root Cause Classification #3 :", size=(
                   40, 1), justification="r"), sg.I(key="input_5")],
+            #   [sg.B("Insert classifications", key='insert')],
               [sg.T("Remark :", size=(40, 1), justification="r"),
                sg.I(key="input_6")],
               [sg.T("Proposed solution to prevent recurrence :", size=(
@@ -118,9 +143,18 @@ def gui_window(file, sheet):
                        modal=True, use_custom_titlebar=True)
     idx = 0
     while True:
-        event, values = window.read()
+        event, values = window.read(timeout=1000)
         if event == sg.WINDOW_CLOSED:
             break
+        # if event == 'insert':
+        #     print('insert')
+        #     layout.insert(to_insert_index, [sg.T("Primary Root Cause Classification #3 :", size=(
+        #           40, 1), justification="r"), sg.I(key="input_5" + chr(alphabet))])
+        #     to_insert_index += 1
+        #     alphabet += 1
+        #     gui_window(layout, file, sheet, alphabet, to_insert_index)
+        #     break
+
         if event == 'search':
             idx = df[df['Item Id'] == str(values['item_id'])].index
             if idx > 0:
