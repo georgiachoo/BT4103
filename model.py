@@ -99,8 +99,8 @@ def analyse_data(start_alphabet, end_alphabet):
     else:       # 2 characters ie. AA
         end_index = ((ord(end_alphabet[0]) - 64) * 26) + ord(end_alphabet[1]) - 65
 
-    test_df = read_data('temp_train.xlsx')
-    test_df = test_df.tail(-1)      # remove header row
+    original_test_df = read_data('sample_test_data.xlsx')
+    test_df = original_test_df.tail(-1)      # remove header row
     test_df = test_df.iloc[:, start_index:end_index]
     test_df['Combined Text'] = test_df[test_df.columns[0:]].apply(lambda x: ' '.join(x.dropna().astype(str)),axis=1)
     test_df['Processed Text'] = test_df['Combined Text'].apply(lambda x: processText(x))
@@ -172,12 +172,12 @@ def analyse_data(start_alphabet, end_alphabet):
     print('results is:')
     print(temp)
 
-    test_df['SVC_Prediction'] = svc_pred_on_test
-    test_df['MNB_Prediction'] = mnb_pred_on_test
-    test_df['MLR_Prediction'] = mlr_pred_on_test
+    original_test_df['SVC_Prediction'] = svc_pred_on_test
+    original_test_df['MNB_Prediction'] = mnb_pred_on_test
+    original_test_df['MLR_Prediction'] = mlr_pred_on_test
 
     # export results in csv to be displayed on PowerBI
-    test_df.to_csv('prediction_results.csv')
+    original_test_df.to_csv('./data/prediction_results.csv')
     
     # returns all of the models' results in the form of dict
     return temp
