@@ -80,6 +80,108 @@ def processText(sentence):
         
     return clean_text
 
+def analyse_data(start_alphabet, end_alphabet):
+
+     # import training dataset
+    df = read_data()
+    df['Combined Text'] = df[df.columns[0:]].apply(lambda x: ' '.join(x.dropna().astype(str)),axis=1)
+    df['Processed Text'] = df['Combined Text'].apply(lambda x: processText(x))
+
+    # import test dataset
+    # assumption: column alphabet is in capital letters and doesnt go beyong ZZ
+    if len(start_alphabet) == 1:
+        start_index = ord(start_alphabet) - 65      # ord('A') = 65
+    else:       # 2 characters ie. AA
+        start_index = ((ord(start_alphabet[0]) - 64) * 26) + ord(start_alphabet[1]) - 65
+    
+    if len(end_alphabet) == 1:
+        end_index = ord(end_alphabet) - 65          # ord('A') = 65
+    else:       # 2 characters ie. AA
+        end_index = ((ord(end_alphabet[0]) - 64) * 26) + ord(end_alphabet[1]) - 65
+
+    test_df = read_data('temp_train.xlsx')
+    test_df = test_df.tail(-1)      # remove header row
+    test_df = test_df.iloc[:, start_index:end_index]
+    test_df['Combined Text'] = test_df[test_df.columns[0:]].apply(lambda x: ' '.join(x.dropna().astype(str)),axis=1)
+    test_df['Processed Text'] = test_df['Combined Text'].apply(lambda x: processText(x))
+
+    #Train-Test Split
+    X_train, X_test, y_train, y_test = train_test_split(df["Processed Text"], df["Primary Root Cause Classification #3"], test_size=0.2, shuffle=True)
+
+    #Tf-Idf vectorization
+    tfidf_vectorizer = TfidfVectorizer(use_idf = True)
+    X_train_tfidf = tfidf_vectorizer.fit_transform(X_train) 
+    X_test_tfidf = tfidf_vectorizer.transform(X_test)
+
+    to_predict = tfidf_vectorizer.transform(test_df['Processed Text'])
+
+    # train SVC model
+    print("Training SVC model")
+    #Parameter Tuning using Grid Search & Stratified K Fold Cross Validation for SVC
+    parameters = {'kernel':('linear', 'poly', 'rbf'), 'C':[0.1, 1, 10, 100], 'gamma':[0.001, 0.01, 0.1, 1], 'degree': [1, 2, 3, 4]}
+    grid_svc = GridSearchCV(SVC(), parameters, refit=True, cv=10, verbose=3) #cv: number of folds in a StratifiedKFold cross validation
+    grid_svc.fit(X_train_tfidf, y_train)
+    #print(grid_svc.best_estimator_)
+
+    #Implement best SVC model
+    print("Predicting root cases using SVC model")
+    param_dict = grid_svc.best_params_
+    svc = SVC(kernel=param_dict['kernel'], C=param_dict['C'], gamma=param_dict['gamma'], degree=param_dict['degree'], decision_function_shape='ovr') 
+    svc.fit(X_train_tfidf, y_train)
+    svc_y_pred = svc.predict(X_test_tfidf)
+    svc_pred_on_test = svc.predict(to_predict)
+
+    svc_cr = classification_report(y_test, svc_y_pred, output_dict= True)
+
+    # train Naive Bayes model model
+    print("Training Naive Bayes model")
+    #Parameter Tuning using Grid Search & Stratified K Fold Cross Validation for Naive Bayes
+    parameters = {'alpha':[0.01, 0.1, 0.5, 1, 2, 5]} #smoothing parameter
+    grid_mnb = GridSearchCV(MultinomialNB(), parameters, refit=True, cv=10, verbose=3) #cv: number of folds in a StratifiedKFold cross validation
+    grid_mnb.fit(X_train_tfidf, y_train)
+
+    #Implement best model
+    print("Predicting root cases using Naive Bayes model")
+    param_dict = grid_mnb.best_params_
+    mnb = MultinomialNB(alpha=param_dict['alpha'])
+    mnb.fit(X_train_tfidf, y_train)
+    mnb_y_pred = mnb.predict(X_test_tfidf)
+    mnb_pred_on_test = mnb.predict(to_predict)
+
+    mnb_cr = classification_report(y_test, mnb_y_pred, output_dict= True)
+
+    # train Multinomial Logistic Regression model model
+    print("Training Multinomial Logistic Regression model")
+    #Parameter Tuning using Grid Search & Stratified K Fold Cross Validation for Multinomial Logistic Regression
+    parameters = {'multi_class': ['multinomial'], 'solver': ['lbfgs'], 'C': [0.0, 0.0001, 0.001, 0.01, 0.1, 1.0], 'penalty': ['l2']} #smoothing parameter
+    grid_mlr = GridSearchCV(LogisticRegression(), parameters, refit=True, cv=10, verbose=3) #cv: number of folds in a StratifiedKFold cross validation
+    grid_mlr.fit(X_train_tfidf, y_train)
+
+    #Implement best model
+    param_dict = grid_mlr.best_params_
+    mlr = LogisticRegression(multi_class='multinomial', solver='lbfgs', C=param_dict['C'], penalty=param_dict['penalty'])
+    mlr.fit(X_train_tfidf, y_train)
+    mlr_y_pred = mlr.predict(X_test_tfidf)
+    mlr_pred_on_test = mlr.predict(to_predict)
+
+    mlr_cr = classification_report(y_test, mlr_y_pred, output_dict= True)
+
+
+    all_values = [list(svc_cr['weighted avg'].values()), list(mnb_cr['weighted avg'].values()), list(mlr_cr['weighted avg'].values())]
+    temp = pd.DataFrame(all_values, index = ["SVC", "Multinomial Naive Bayes", "Multiomial Logistic Regression"], columns = list(mlr_cr['weighted avg'].keys()))
+    print('results is:')
+    print(temp)
+
+    test_df['SVC_Prediction'] = svc_pred_on_test
+    test_df['MNB_Prediction'] = mnb_pred_on_test
+    test_df['MLR_Prediction'] = mlr_pred_on_test
+
+    # export results in csv to be displayed on PowerBI
+    test_df.to_csv('prediction_results.csv')
+    
+    # returns all of the models' results in the form of dict
+    return temp
+
 if __name__ == '__main__':
 
     # import training dataset
@@ -153,5 +255,5 @@ if __name__ == '__main__':
     all_values = [list(svc_cr['weighted avg'].values()), list(mnb_cr['weighted avg'].values()), list(mlr_cr['weighted avg'].values())]
     temp = pd.DataFrame(all_values, index = ["SVC", "Multinomial Naive Bayes", "Multiomial Logistic Regression"], columns = list(mlr_cr['weighted avg'].keys()))
     print(temp)
-    print('donez')
+    print('done with running model.py file')
 
